@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <pthread.h>
 
-int iniciarMutex(pthread_mutex_t *mutex);
+void iniciarMutex(pthread_mutex_t *mutex);
+int criarThread(pthread_t tratarClientes, void *tratamento, void *informacoes);
 
 #endif

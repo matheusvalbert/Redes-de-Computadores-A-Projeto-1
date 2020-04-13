@@ -10,13 +10,22 @@
 #include <signal.h>
 #include <pthread.h>
 
-int iniciarMutex(pthread_mutex_t *mutex) {
+void iniciarMutex(pthread_mutex_t *mutex) {
 
 	if (pthread_mutex_init(mutex, NULL) != 0)  {
 
 		printf("falha iniciacao semaforo\n");
 		exit(1);
 	}
-	else
-		return 0;
+}
+
+int criarThread(pthread_t tratarClientes, void *tratamento, void *informacoes) {
+	
+	int tc = pthread_create(&tratarClientes, NULL, tratamento, informacoes);
+    	if (tc) {
+		printf("ERRO: impossivel criar um thread consumidor\n");
+		exit(-1);
+    	}
+
+	return tc;
 }

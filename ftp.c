@@ -70,3 +70,11 @@ void iniciaConexaoServer(int *s, unsigned short *port, struct sockaddr_in *serve
 
 	*namelen = sizeof(*client);
 }
+
+void aceitaConexao(int *ns, int *s, struct sockaddr_in *client, int *namelen) {
+
+	if ((*ns = accept(*s, (struct sockaddr *)client, (socklen_t *) namelen)) == -1) {
+		perror("Accept()");
+		exit(5);
+	}
+}

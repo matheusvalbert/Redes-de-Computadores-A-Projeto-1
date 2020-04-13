@@ -22,6 +22,17 @@ pthread_mutex_t mutex;
 void INThandler(int);
 int s;
 
+void *tratamento(void *informacoes) {
+
+	struct sockaddr_in client;
+	struct infocliente info;
+	int ns;
+	info = *(struct infocliente*) informacoes;
+	client = info.client;
+	ns = info.ns;
+	printf("conexao aceita!\n");
+}
+
 int main(int argc, char **argv) {
 
 	pthread_t tratarClientes;
@@ -44,6 +55,18 @@ int main(int argc, char **argv) {
 	strcpy(arg, argv[1]);
 
 	iniciaConexaoServer(&s, &port, &server, &client, &namelen, arg);
+
+	while(1) {
+
+		aceitaConexao(&ns, &s, &client, &namelen);
+
+		informacoes.ns = ns;
+		informacoes.client = client;
+		
+		tc = criarThread(tratarClientes, tratamento, &informacoes);
+
+		usleep(250);
+	}
 
 	return 0;
 }

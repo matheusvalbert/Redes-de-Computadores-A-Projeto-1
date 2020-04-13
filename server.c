@@ -22,16 +22,10 @@ pthread_mutex_t mutex;
 void INThandler(int);
 int s;
 
-void *tratamento(void *informacoes) {
-
-	struct sockaddr_in client;
-	struct infocliente info;
-	int ns;
-	info = *(struct infocliente*) informacoes;
-	client = info.client;
-	ns = info.ns;
-	printf("conexao aceita!\n");
-}
+void *tratamento(void *informacoes);
+void listar();
+void receber();
+void enviar();
 
 int main(int argc, char **argv) {
 
@@ -69,6 +63,50 @@ int main(int argc, char **argv) {
 	}
 
 	return 0;
+}
+
+void *tratamento(void *informacoes) {
+
+	struct sockaddr_in client;
+	struct infocliente info;
+	int ns;
+	info = *(struct infocliente*) informacoes;
+	client = info.client;
+	ns = info.ns;
+	char comando[15];
+
+	printf("conexao aceita!\n");
+
+	do {
+
+		receberMensagem(ns, comando, sizeof(comando));
+
+		if(strcmp(comando, "listar") == 0)
+			listar();
+		else if(strcmp(comando, "receber") == 0)
+			receber();
+		else if(strcmp(comando, "enviar") == 0)
+			enviar();
+
+	}while(strcmp(comando, "encerrar") != 0);
+
+	close(ns);
+	pthread_exit(NULL);
+}
+
+void listar() {
+
+	printf("listar\n");
+}
+
+void receber() {
+
+	printf("receber\n");
+}
+
+void enviar() {
+
+	printf("enviar\n");
 }
 
 void  INThandler(int sig)

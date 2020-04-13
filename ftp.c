@@ -78,3 +78,21 @@ void aceitaConexao(int *ns, int *s, struct sockaddr_in *client, int *namelen) {
 		exit(5);
 	}
 }
+
+void enviarMensagem(int s, char enviar[], int tamanho) {
+
+	if (send(s, enviar, tamanho, 0) < 0) {
+
+		perror("Send()");
+		exit(5);
+	}
+}
+
+void receberMensagem(int s, char receber[], int tamanho) {
+
+	if (recv(s, receber, tamanho, 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
+}

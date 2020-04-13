@@ -15,10 +15,10 @@
 void printMenu();
 void receberComando(char comando[], char arg1[], char arg2[]);
 bool conectar(int *s, char arg1[], char arg2[], unsigned short *port, struct hostent *hostnm, struct sockaddr_in *server);
-void listar();
-void receber();
-void enviar();
-void encerrar();
+void listar(int s);
+void receber(int s);
+void enviar(int s);
+void encerrar(int s);
 
 int main() {
 
@@ -38,13 +38,13 @@ int main() {
 	if(strcmp(comando, "conectar") == 0 && arg1 != NULL && arg2 != NULL)
 		flag = conectar(&s, arg1, arg2, &port, hostnm, &server);
 	else if(strcmp(comando, "listar\n") == 0 && flag == true)
-		listar();
+		listar(s);
 	else if(strcmp(comando, "receber") == 0 && arg1 != NULL && arg2 != NULL && flag == true)
-		receber();
+		receber(s);
 	else if(strcmp(comando, "enviar") == 0 && arg1 != NULL && arg2 != NULL && flag == true)
-		enviar();
+		enviar(s);
 	else if(strcmp(comando, "encerrar\n") == 0 && flag == true)
-		encerrar();
+		encerrar(s);
 	else
 		printf("comando invalido!");
 
@@ -91,22 +91,23 @@ bool conectar(int *s, char arg1[], char arg2[], unsigned short *port, struct hos
 	return true;
 }
 
-void listar() {
+void listar(int s) {
 
-	printf("listar\n");
+	enviarMensagem(s, "listar", sizeof("listar"));
 }
 
-void receber() {
+void receber(int s) {
 
-	printf("receber\n");
+	enviarMensagem(s, "receber", sizeof("receber"));
 }
 
-void enviar() {
+void enviar(int s) {
 
-	printf("enviar\n");
+	enviarMensagem(s, "enviar", sizeof("enviar"));
 }
 
-void encerrar() {
+void encerrar(int s) {
 
-	printf("encerrar\n");
+	enviarMensagem(s, "encerrar", sizeof("encerrar"));
+	close(s);
 }

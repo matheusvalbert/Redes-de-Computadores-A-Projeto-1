@@ -7,6 +7,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <sys/sendfile.h>
+#include <fcntl.h>
 #include "thread.h"
 #include "ftp.h"
 
@@ -16,15 +18,15 @@ void printMenu();
 void receberComando(char comando[], char arg1[], char arg2[]);
 bool conectar(int *s, char arg1[], char arg2[], unsigned short *port, struct hostent *hostnm, struct sockaddr_in *server);
 void listar(int s);
-void receber(int s);
-void enviar(int s);
+void receber(int s, char arg1[], char arg2[]);
+void enviar(int s, char arg1[], char arg2[]);
 void encerrar(int s);
 
 int main() {
 
 	unsigned short port;
 	struct hostent *hostnm;
-        struct sockaddr_in server;
+    struct sockaddr_in server;
 	bool flag = false;
 	int s;
 
@@ -40,11 +42,16 @@ int main() {
 	else if(strcmp(comando, "listar\n") == 0 && flag == true)
 		listar(s);
 	else if(strcmp(comando, "receber") == 0 && arg1 != NULL && arg2 != NULL && flag == true)
-		receber(s);
+		receber(s, arg1, arg2);
 	else if(strcmp(comando, "enviar") == 0 && arg1 != NULL && arg2 != NULL && flag == true)
-		enviar(s);
+		enviar(s, arg1, arg2);
 	else if(strcmp(comando, "encerrar\n") == 0 && flag == true)
-		encerrar(s);
+		{
+			encerrar(s);
+			flag = false;
+		}
+	else if(flag == false)
+		printf("Conexao ainda nao realizada!\n");
 	else
 		printf("comando invalido!");
 
@@ -55,7 +62,7 @@ int main() {
 
 void printMenu() {
 
-	clrscr();
+	//clrscr();
 	printf("Opcoes:\n");
 	printf("conectar <nome do servidor> <porta do servidor>\n");
 	printf("listar\n");
@@ -92,22 +99,69 @@ bool conectar(int *s, char arg1[], char arg2[], unsigned short *port, struct hos
 }
 
 void listar(int s) {
-
+	char file_names[200];
 	enviarMensagem(s, "listar", sizeof("listar"));
+	receberMensagem(s, file_names, sizeof(file_names));
+	printf("%s", file_names);
 }
 
-void receber(int s) {
+void receber(int s, char arg1[], char arg2[]) {
 
 	enviarMensagem(s, "receber", sizeof("receber"));
+	enviarMensagem(s, arg1, strlen(arg1));
+	unsigned char *buffer;
+	int size, tamanho;
+
+	tamanho = strlen(arg2);
+	arg2[tamanho - 1] = '\0';
+
+	receberMensagem(s, &size, sizeof(size));
+
+	buffer = malloc(size);
+
+	receberMensagem(s, buffer, size);
+
+	FILE *ptr;
+
+	ptr = fopen(arg2,"wb");
+
+	fwrite(buffer,size,1,ptr);
+
+	fclose(ptr);
+
+	free(buffer);
 }
 
-void enviar(int s) {
+void enviar(int s, char arg1[], char arg2[]) {
 
 	enviarMensagem(s, "enviar", sizeof("enviar"));
+	enviarMensagem(s, arg2, strlen(arg2));
+	int size;
+	unsigned char *buffer;
+	
+	FILE *ptr;
+	ptr = fopen(arg1,"rb");
+
+	fseek(ptr, 0, SEEK_END);
+	size = ftell(ptr);
+	fseek(ptr, 0, SEEK_SET);
+
+	enviarMensagem(s, &size, sizeof(size));
+
+	buffer = malloc(size);
+
+	printf("%d\n", size);
+
+	fread(buffer,size,1,ptr);
+
+	enviarMensagem(s, buffer, size);
+
+	fclose(ptr);
+
+	free(buffer);
 }
 
 void encerrar(int s) {
-
 	enviarMensagem(s, "encerrar", sizeof("encerrar"));
 	close(s);
 }

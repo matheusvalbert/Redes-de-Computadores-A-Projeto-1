@@ -79,7 +79,7 @@ void aceitaConexao(int *ns, int *s, struct sockaddr_in *client, int *namelen) {
 	}
 }
 
-void enviarMensagem(int s, char enviar[], int tamanho) {
+void enviarMensagem(int s, const void *enviar, size_t tamanho) {
 
 	if (send(s, enviar, tamanho, 0) < 0) {
 
@@ -88,7 +88,7 @@ void enviarMensagem(int s, char enviar[], int tamanho) {
 	}
 }
 
-void receberMensagem(int s, char receber[], int tamanho) {
+void receberMensagem(int s, void *receber, size_t tamanho) {
 
 	if (recv(s, receber, tamanho, 0) == -1) {
 

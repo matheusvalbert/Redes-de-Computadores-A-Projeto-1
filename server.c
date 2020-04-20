@@ -9,8 +9,13 @@
 #include <string.h>
 #include <signal.h>
 #include <pthread.h>
+#include <sys/sendfile.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include "thread.h"
 #include "ftp.h"
+#include <sys/types.h>
+#include <dirent.h>
 
 struct infocliente
 {
@@ -23,9 +28,9 @@ void INThandler(int);
 int s;
 
 void *tratamento(void *informacoes);
-void listar();
-void receber();
-void enviar();
+void listar(int ns);
+void receber(int ns);
+void enviar(int ns);
 
 int main(int argc, char **argv) {
 
@@ -77,36 +82,121 @@ void *tratamento(void *informacoes) {
 
 	printf("conexao aceita!\n");
 
-	do {
+	while(1) {
 
 		receberMensagem(ns, comando, sizeof(comando));
 
 		if(strcmp(comando, "listar") == 0)
-			listar();
+			listar(ns);
 		else if(strcmp(comando, "receber") == 0)
-			receber();
+			receber(ns);
 		else if(strcmp(comando, "enviar") == 0)
-			enviar();
+			enviar(ns);
+		else if(strcmp(comando, "encerrar") == 0) {
 
-	}while(strcmp(comando, "encerrar") != 0);
-
-	close(ns);
-	pthread_exit(NULL);
+			close(ns);
+			pthread_exit(NULL);
+		}
+	}
 }
 
-void listar() {
+void listar(int ns) {
+	size_t tamanho = 101;
+	char buff[100], file_names[200], *cwd;	
+	int filesize;
+	DIR *dir;
+	struct dirent *dp;
+	file_names[0] = '\0';
 
 	printf("listar\n");
+
+	cwd = getcwd(buff,tamanho);
+	if ((dir = opendir (cwd)) == NULL) 
+	{
+        	perror ("Cannot open current directory!");
+        	exit (1);
+   	}
+	while ((dp = readdir (dir)) != NULL) 
+	{
+		if ( !strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..") )
+		{
+     		// nao mostrar o diretorio atual e o anterior
+		}
+		else
+		{
+			if(file_names[0] == '\0')
+				strcpy(file_names,dp->d_name);
+			else
+			{
+				filesize = strlen(file_names);
+				file_names[filesize] = ' ';
+				file_names[filesize + 1] = '\0';
+				strcat(file_names,dp->d_name);
+			}
+			
+		}
+	}
+	filesize = strlen(file_names);
+	file_names[filesize] = '\n';
+	file_names[filesize + 1] = '\0';
+	enviarMensagem(ns, file_names, strlen(file_names));
+	closedir(dir);
 }
 
-void receber() {
+void receber(int ns) {
 
+	char arg[50];
 	printf("receber\n");
+	receberMensagem(ns, arg, sizeof(arg));
+	int size;
+	unsigned char *buffer;
+	
+	FILE *ptr;
+	ptr = fopen(arg,"rb");
+
+	fseek(ptr, 0, SEEK_END);
+	size = ftell(ptr);
+	fseek(ptr, 0, SEEK_SET);
+
+	enviarMensagem(ns, &size, sizeof(size));
+
+	buffer = malloc(size);
+
+	fread(buffer,size,1,ptr);
+
+	enviarMensagem(ns, buffer, size);
+
+	fclose(ptr);
+
+	free(buffer);
 }
 
-void enviar() {
+void enviar(int ns) {
 
+	char arg[50];
+	unsigned char *buffer;
+	int size, tamanho;
 	printf("enviar\n");
+	receberMensagem(ns, arg, sizeof(arg));
+
+	tamanho = strlen(arg);
+	arg[tamanho - 2] = '\0';
+
+	receberMensagem(ns, &size, sizeof(size));
+
+	buffer = malloc(size);
+
+	receberMensagem(ns, buffer, size);
+
+	FILE *ptr;
+
+	ptr = fopen(arg,"wb");
+
+	fwrite(buffer,size,1,ptr);
+
+	fclose(ptr);
+
+	free(buffer);
 }
 
 void  INThandler(int sig)

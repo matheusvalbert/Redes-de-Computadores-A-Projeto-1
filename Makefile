@@ -1,10 +1,8 @@
-all: ftp
+all: psta
 
-ftp: ftp.o thread.o client.o server.o
-	gcc ftp.o thread.o client.o -o client  -pthread
-	gcc ftp.o thread.o server.o -o server -pthread
-	rm -rf *.o
-	rm -rf *.h.gch
+psta: tcp.o client.o server.o
+	gcc tcp.o client.o -o client
+	gcc tcp.o server.o -o server -pthread
 
 client.o: client.c
 	gcc -c client.c
@@ -12,8 +10,5 @@ client.o: client.c
 server.o: server.c
 	gcc -c server.c
 
-thread.o: thread.c
-	gcc -c thread.c -pthread
-
-ftp.o: ftp.c
-	gcc -c ftp.c
+tcp.o: tcp.c
+	gcc -c tcp.c

@@ -1,21 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <string.h>
 #include <signal.h>
 #include <pthread.h>
-#include <sys/sendfile.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include "thread.h"
-#include "ftp.h"
-#include <sys/types.h>
 #include <dirent.h>
+#include <unistd.h>
+#include "tcp.h"
 
 struct infocliente
 {
@@ -28,9 +21,9 @@ void INThandler(int);
 int s;
 
 void *tratamento(void *informacoes);
-void listar(int ns);
-void receber(int ns);
-void enviar(int ns);
+void listar(int ns, char ip[], int p);
+void receber(int ns, char ip[], int p);
+void enviar(int ns, char ip[], int p);
 
 int main(int argc, char **argv) {
 
@@ -49,7 +42,11 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	iniciarMutex(&mutex);
+	if (pthread_mutex_init(&mutex, NULL) != 0)  {
+
+		printf("falha iniciacao semaforo\n");
+		exit(1);
+	}
 
 	strcpy(arg, argv[1]);
 
@@ -62,7 +59,11 @@ int main(int argc, char **argv) {
 		informacoes.ns = ns;
 		informacoes.client = client;
 		
-		tc = criarThread(tratarClientes, tratamento, &informacoes);
+		tc = pthread_create(&tratarClientes, NULL, tratamento, &informacoes);
+    	if (tc) {
+			printf("ERRO: impossivel criar um thread consumidor\n");
+			exit(-1);
+    	}
 
 		usleep(250);
 	}
@@ -80,27 +81,28 @@ void *tratamento(void *informacoes) {
 	ns = info.ns;
 	char comando[15];
 
-	printf("conexao aceita!\n");
+	printf("conexao aceita - IP: %s - Porta: %d\n", inet_ntoa(client.sin_addr), ntohs(client.sin_port));
 
 	while(1) {
 
 		receberMensagem(ns, comando, sizeof(comando));
 
 		if(strcmp(comando, "listar") == 0)
-			listar(ns);
+			listar(ns, inet_ntoa(client.sin_addr), ntohs(client.sin_port));
 		else if(strcmp(comando, "receber") == 0)
-			receber(ns);
+			receber(ns, inet_ntoa(client.sin_addr), ntohs(client.sin_port));
 		else if(strcmp(comando, "enviar") == 0)
-			enviar(ns);
+			enviar(ns, inet_ntoa(client.sin_addr), ntohs(client.sin_port));
 		else if(strcmp(comando, "encerrar") == 0) {
 
 			close(ns);
+			printf("encerrar - IP: %s - Porta: %d\n", inet_ntoa(client.sin_addr), ntohs(client.sin_port));
 			pthread_exit(NULL);
 		}
 	}
 }
 
-void listar(int ns) {
+void listar(int ns, char ip[], int p) {
 	size_t tamanho = 101;
 	char buff[100], file_names[200], *cwd;	
 	int filesize;
@@ -108,7 +110,7 @@ void listar(int ns) {
 	struct dirent *dp;
 	file_names[0] = '\0';
 
-	printf("listar\n");
+	printf("listar - IP: %s - Porta: %d\n", ip, p);
 
 	cwd = getcwd(buff,tamanho);
 	if ((dir = opendir (cwd)) == NULL) 
@@ -139,11 +141,13 @@ void listar(int ns) {
 	filesize = strlen(file_names);
 	file_names[filesize] = '\n';
 	file_names[filesize + 1] = '\0';
+	tamanho = strlen(file_names);
+	enviarMensagem(ns , &tamanho, sizeof(tamanho));
 	enviarMensagem(ns, file_names, strlen(file_names));
 	closedir(dir);
 }
 
-void receber(int ns) {
+void receber(int ns, char ip[], int p) {
 
 	unsigned short port;
 	struct hostent *hostnm;
@@ -163,13 +167,14 @@ void receber(int ns) {
 
 
 	char arg[50];
-	printf("receber\n");
+	printf("receber - IP: %s - Porta: %d\n", ip, p);
 	int argTam;
 	receberMensagem(ns, &argTam, sizeof(argTam));
 	receberMensagem(ns, arg, argTam);
 	int size;
 	unsigned char *buffer;
 	
+	pthread_mutex_lock(&mutex);
 	FILE *ptr;
 	ptr = fopen(arg,"rb");
 
@@ -186,13 +191,12 @@ void receber(int ns) {
 	enviarMensagem(sData, buffer, size*sizeof(char));
 
 	fclose(ptr);
-
+	pthread_mutex_unlock(&mutex);
 	free(buffer);
-
 	close(sData);
 }
 
-void enviar(int ns) {
+void enviar(int ns, char ip[], int p) {
 
 	unsigned short port;
 	struct hostent *hostnm;
@@ -213,7 +217,7 @@ void enviar(int ns) {
 	char arg[50];
 	unsigned char *buffer;
 	int size, tamanho;
-	printf("enviar\n");
+	printf("enviar - IP: %s - Porta: %d\n", ip, p);
 	int argTam;
 	receberMensagem(ns, &argTam, sizeof(argTam));
 	receberMensagem(ns, arg, argTam);
@@ -224,6 +228,7 @@ void enviar(int ns) {
 
 	receberMensagem(sData, buffer, size*sizeof(char));
 
+	pthread_mutex_lock(&mutex);
 	FILE *ptr;
 
 	ptr = fopen(arg,"wb");
@@ -231,9 +236,8 @@ void enviar(int ns) {
 	fwrite(buffer,size,1,ptr);
 
 	fclose(ptr);
-
+	pthread_mutex_unlock(&mutex);
 	free(buffer);
-
 	close(sData);
 }
 

@@ -1,16 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
+#include <stdbool.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h>
-#include <sys/sendfile.h>
-#include <fcntl.h>
-#include "thread.h"
-#include "ftp.h"
+#include <unistd.h>
+#include "tcp.h"
 
 #define clrscr() printf("\e[1;1H\e[2J")
 
@@ -23,8 +18,12 @@ void enviar(int s, char arg1[], char arg2[]);
 void encerrar(int s);
 
 int cout = 50;
+char host[50];
 
 int main() {
+
+	clrscr();
+	printMenu();
 
 	unsigned short port;
 	struct hostent *hostnm;
@@ -36,26 +35,27 @@ int main() {
 
 	while(1) {
 
-	printMenu();
+	printf("> ");
 	receberComando(comando, arg1, arg2);
 
 	if(strcmp(comando, "conectar") == 0 && arg1 != NULL && arg2 != NULL)
 		flag = conectar(&s, arg1, arg2, &port, hostnm, &server);
 	else if(strcmp(comando, "listar\n") == 0 && flag == true)
 		listar(s);
-	else if(strcmp(comando, "receber") == 0 && arg1 != NULL && arg2 != NULL && flag == true)
+	else if(strcmp(comando, "receber") == 0 && arg1 != NULL && flag == true)
 		receber(s, arg1, arg2);
-	else if(strcmp(comando, "enviar") == 0 && arg1 != NULL && arg2 != NULL && flag == true)
+	else if(strcmp(comando, "enviar") == 0 && arg1 != NULL && flag == true)
 		enviar(s, arg1, arg2);
 	else if(strcmp(comando, "encerrar\n") == 0 && flag == true)
 		{
 			encerrar(s);
 			flag = false;
+			printf("conexao encerrada\n");
 		}
 	else if(flag == false)
 		printf("Conexao ainda nao realizada!\n");
 	else
-		printf("comando invalido!");
+		printf("comando invalido!\n");
 
 	}
 
@@ -64,14 +64,12 @@ int main() {
 
 void printMenu() {
 
-	//clrscr();
 	printf("Opcoes:\n");
 	printf("conectar <nome do servidor> <porta do servidor>\n");
 	printf("listar\n");
 	printf("receber <arquivo remoto> <arquivo local>\n");
 	printf("enviar <arquivo local> <arquivo remoto>\n");
 	printf("encerrar\n");
-	printf("> "); 
 }
 
 void receberComando(char comando[], char arg1[], char arg2[]) {
@@ -94,20 +92,36 @@ void receberComando(char comando[], char arg1[], char arg2[]) {
 		strcpy(arg2, aux);
 		arg2[strlen(arg2) - 1] = '\0';
 	}
+	else {
+
+		arg1[strlen(arg1) - 1] = '\0';
+		strcpy(arg2, arg1);
+	}
 }
 
 bool conectar(int *s, char arg1[], char arg2[], unsigned short *port, struct hostent *hostnm, struct sockaddr_in *server) {
 
 	iniciaConexaoClient(arg1, arg2, port, hostnm, server);
 	socketConectar(s, server);
+	strcpy(host, arg1);
+	printf("conexao aceita\n");
 	return true;
 }
 
 void listar(int s) {
 	char file_names[200];
 	enviarMensagem(s, "listar", sizeof("listar"));
-	receberMensagem(s, file_names, sizeof(file_names));
-	printf("%s", file_names);
+	int tamanho;
+	receberMensagem(s, &tamanho, sizeof(tamanho));
+	receberMensagem(s, file_names, tamanho);
+	printf("arquivos:\n-");
+	for(int i = 0; i < tamanho; i++)
+		if(file_names[i] == '\0')
+			break;
+		else if(file_names[i] == ' ')
+			printf("\n-");
+		else
+			printf("%c", file_names[i]);
 }
 
 void receber(int s, char arg1[], char arg2[]) {
@@ -127,8 +141,6 @@ void receber(int s, char arg1[], char arg2[]) {
 
 	iniciaConexaoServer(&sData, &port, &server, &client, &namelen, argument);
 
-	char host[50];
-	strcpy(host, inet_ntoa(server.sin_addr));
 	enviarMensagem(s, host, sizeof(host));
 
 	aceitaConexao(&nsData, &sData, &client, &namelen);
@@ -152,12 +164,11 @@ void receber(int s, char arg1[], char arg2[]) {
 	fwrite(buffer,size,1,ptr);
 
 	fclose(ptr);
-
 	free(buffer);
-
 	close(nsData);
-
 	close(sData);
+
+	printf("arquivo recebido - Nome no servidor: %s - Nome no cliente: %s\n", arg1, arg2);
 }
 
 void enviar(int s, char arg1[], char arg2[]) {
@@ -177,8 +188,6 @@ void enviar(int s, char arg1[], char arg2[]) {
 
 	iniciaConexaoServer(&sData, &port, &server, &client, &namelen, argument);
 
-	char host[50];
-	strcpy(host, inet_ntoa(server.sin_addr));
 	enviarMensagem(s, host, sizeof(host));
 
 	aceitaConexao(&nsData, &sData, &client, &namelen);
@@ -205,12 +214,11 @@ void enviar(int s, char arg1[], char arg2[]) {
 	enviarMensagem(nsData, buffer, size*sizeof(char));
 
 	fclose(ptr);
-
 	free(buffer);
-
 	close(nsData);
-
 	close(sData);
+
+	printf("arquivo enviado - Nome no cliente: %s - Nome no servidor: %s\n", arg1, arg2);
 }
 
 void encerrar(int s) {

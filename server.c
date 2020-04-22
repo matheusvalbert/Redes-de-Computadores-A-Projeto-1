@@ -25,7 +25,7 @@ struct infocliente
 
 pthread_mutex_t mutex;
 void INThandler(int);
-int s, cout = 50;
+int s;
 
 void *tratamento(void *informacoes);
 void listar(int ns);
@@ -145,24 +145,21 @@ void listar(int ns) {
 
 void receber(int ns) {
 
-	unsigned short port; 
-	int nsData, namelen, sData;
-	struct sockaddr_in client;
-	struct sockaddr_in server;
+	unsigned short port;
+	struct hostent *hostnm;
+    struct sockaddr_in server;
+	int sData;
 	char argument[50];
 
-	int porta = 5000 + cout;
+	int porta;
+	receberMensagem(ns, &porta, sizeof(porta));
 	sprintf(argument, "%d", porta);
-	enviarMensagem(ns, &porta, sizeof(porta));
-	cout++;
-
-	iniciaConexaoServer(&sData, &port, &server, &client, &namelen, argument);
 
 	char host[50];
-	strcpy(host, inet_ntoa(server.sin_addr));
-	enviarMensagem(ns, host, sizeof(host));
+	receberMensagem(ns, host, sizeof(host));
 
-	aceitaConexao(&nsData, &sData, &client, &namelen);
+	iniciaConexaoClient(host, argument, &port, hostnm, &server);
+	socketConectar(&sData, &server);
 
 
 	char arg[50];
@@ -186,37 +183,32 @@ void receber(int ns) {
 
 	fread(buffer,size,1,ptr);
 
-	enviarMensagem(nsData, buffer, size*sizeof(char));
+	enviarMensagem(sData, buffer, size*sizeof(char));
 
 	fclose(ptr);
 
 	free(buffer);
-
-	close(nsData);
 
 	close(sData);
 }
 
 void enviar(int ns) {
 
-	unsigned short port; 
-	int nsData, namelen, sData;
-	struct sockaddr_in client;
-	struct sockaddr_in server;
+	unsigned short port;
+	struct hostent *hostnm;
+    struct sockaddr_in server;
+	int sData;
 	char argument[50];
 
-	int porta = 5000 + cout;
+	int porta;
+	receberMensagem(ns, &porta, sizeof(porta));
 	sprintf(argument, "%d", porta);
-	enviarMensagem(ns, &porta, sizeof(porta));
-	cout++;
-
-	iniciaConexaoServer(&sData, &port, &server, &client, &namelen, argument);
 
 	char host[50];
-	strcpy(host, inet_ntoa(server.sin_addr));
-	enviarMensagem(ns, host, sizeof(host));
+	receberMensagem(ns, host, sizeof(host));
 
-	aceitaConexao(&nsData, &sData, &client, &namelen);
+	iniciaConexaoClient(host, argument, &port, hostnm, &server);
+	socketConectar(&sData, &server);
 
 	char arg[50];
 	unsigned char *buffer;
@@ -230,7 +222,7 @@ void enviar(int ns) {
 
 	buffer = malloc(size);
 
-	receberMensagem(nsData, buffer, size*sizeof(char));
+	receberMensagem(sData, buffer, size*sizeof(char));
 
 	FILE *ptr;
 
@@ -241,8 +233,6 @@ void enviar(int ns) {
 	fclose(ptr);
 
 	free(buffer);
-
-	close(nsData);
 
 	close(sData);
 }

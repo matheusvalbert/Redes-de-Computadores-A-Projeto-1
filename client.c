@@ -22,6 +22,8 @@ void receber(int s, char arg1[], char arg2[]);
 void enviar(int s, char arg1[], char arg2[]);
 void encerrar(int s);
 
+int cout = 50;
+
 int main() {
 
 	unsigned short port;
@@ -112,22 +114,24 @@ void receber(int s, char arg1[], char arg2[]) {
 
 	enviarMensagem(s, "receber", sizeof("receber"));
 
-	unsigned short port;
-	struct hostent *hostnm;
-    struct sockaddr_in server;
-	int sData;
+	unsigned short port; 
+	int nsData, namelen, sData;
+	struct sockaddr_in client;
+	struct sockaddr_in server;
 	char argument[50];
 
-	int porta;
-	receberMensagem(s, &porta, sizeof(porta));
+	int porta = 5000 + cout;
 	sprintf(argument, "%d", porta);
+	enviarMensagem(s, &porta, sizeof(porta));
+	cout++;
+
+	iniciaConexaoServer(&sData, &port, &server, &client, &namelen, argument);
 
 	char host[50];
-	receberMensagem(s, host, sizeof(host));
-	printf("%s\n", host);
+	strcpy(host, inet_ntoa(server.sin_addr));
+	enviarMensagem(s, host, sizeof(host));
 
-	iniciaConexaoClient(host, argument, &port, hostnm, &server);
-	socketConectar(&sData, &server);
+	aceitaConexao(&nsData, &sData, &client, &namelen);
 
 	int argTam = strlen(arg1);
 	enviarMensagem(s, &argTam, sizeof(argTam));
@@ -139,7 +143,7 @@ void receber(int s, char arg1[], char arg2[]) {
 
 	buffer = malloc(size);
 
-	receberMensagem(sData, buffer, size*sizeof(char));
+	receberMensagem(nsData, buffer, size*sizeof(char));
 
 	FILE *ptr;
 
@@ -151,6 +155,8 @@ void receber(int s, char arg1[], char arg2[]) {
 
 	free(buffer);
 
+	close(nsData);
+
 	close(sData);
 }
 
@@ -158,22 +164,24 @@ void enviar(int s, char arg1[], char arg2[]) {
 
 	enviarMensagem(s, "enviar", sizeof("enviar"));
 
-	unsigned short port;
-	struct hostent *hostnm;
-    struct sockaddr_in server;
-	int sData;
+	unsigned short port; 
+	int nsData, namelen, sData;
+	struct sockaddr_in client;
+	struct sockaddr_in server;
 	char argument[50];
 
-	int porta;
-	receberMensagem(s, &porta, sizeof(porta));
+	int porta = 5000 + cout;
 	sprintf(argument, "%d", porta);
+	enviarMensagem(s, &porta, sizeof(porta));
+	cout++;
+
+	iniciaConexaoServer(&sData, &port, &server, &client, &namelen, argument);
 
 	char host[50];
-	receberMensagem(s, host, sizeof(host));
-	printf("%s\n", host);
+	strcpy(host, inet_ntoa(server.sin_addr));
+	enviarMensagem(s, host, sizeof(host));
 
-	iniciaConexaoClient(host, argument, &port, hostnm, &server);
-	socketConectar(&sData, &server);
+	aceitaConexao(&nsData, &sData, &client, &namelen);
 
 	int argTam = strlen(arg2);
 	enviarMensagem(s, &argTam, sizeof(argTam));
@@ -192,15 +200,15 @@ void enviar(int s, char arg1[], char arg2[]) {
 
 	buffer = malloc(size);
 
-	printf("%d\n", size);
-
 	fread(buffer,size,1,ptr);
 
-	enviarMensagem(sData, buffer, size*sizeof(char));
+	enviarMensagem(nsData, buffer, size*sizeof(char));
 
 	fclose(ptr);
 
 	free(buffer);
+
+	close(nsData);
 
 	close(sData);
 }

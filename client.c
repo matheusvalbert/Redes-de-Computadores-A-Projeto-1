@@ -79,16 +79,19 @@ void receberComando(char comando[], char arg1[], char arg2[]) {
 	fgets(comandoCompleto, sizeof(comandoCompleto), stdin);
 	
 	aux = strtok(comandoCompleto, " ");
-	if(aux != 0)	
+	if(aux != 0)
 		strcpy(comando, aux);
 
-	aux = strtok(0, " ");
-	if(aux != 0)
+	aux = strtok(NULL, " ");
+	if(aux != NULL)
 		strcpy(arg1, aux);
 
-	aux = strtok(0, " ");
-	if(aux != 0)
+	aux = strtok(NULL, " ");
+	if(aux != NULL) {
+
 		strcpy(arg2, aux);
+		arg2[strlen(arg2) - 1] = '\0';
+	}
 }
 
 bool conectar(int *s, char arg1[], char arg2[], unsigned short *port, struct hostent *hostnm, struct sockaddr_in *server) {
@@ -108,18 +111,35 @@ void listar(int s) {
 void receber(int s, char arg1[], char arg2[]) {
 
 	enviarMensagem(s, "receber", sizeof("receber"));
+
+	unsigned short port;
+	struct hostent *hostnm;
+    struct sockaddr_in server;
+	int sData;
+	char argument[50];
+
+	int porta;
+	receberMensagem(s, &porta, sizeof(porta));
+	sprintf(argument, "%d", porta);
+
+	char host[50];
+	receberMensagem(s, host, sizeof(host));
+	printf("%s\n", host);
+
+	iniciaConexaoClient(host, argument, &port, hostnm, &server);
+	socketConectar(&sData, &server);
+
+	int argTam = strlen(arg1);
+	enviarMensagem(s, &argTam, sizeof(argTam));
 	enviarMensagem(s, arg1, strlen(arg1));
 	unsigned char *buffer;
 	int size, tamanho;
-
-	tamanho = strlen(arg2);
-	arg2[tamanho - 1] = '\0';
-
+	
 	receberMensagem(s, &size, sizeof(size));
 
 	buffer = malloc(size);
 
-	receberMensagem(s, buffer, size);
+	receberMensagem(sData, buffer, size*sizeof(char));
 
 	FILE *ptr;
 
@@ -130,11 +150,33 @@ void receber(int s, char arg1[], char arg2[]) {
 	fclose(ptr);
 
 	free(buffer);
+
+	close(sData);
 }
 
 void enviar(int s, char arg1[], char arg2[]) {
 
 	enviarMensagem(s, "enviar", sizeof("enviar"));
+
+	unsigned short port;
+	struct hostent *hostnm;
+    struct sockaddr_in server;
+	int sData;
+	char argument[50];
+
+	int porta;
+	receberMensagem(s, &porta, sizeof(porta));
+	sprintf(argument, "%d", porta);
+
+	char host[50];
+	receberMensagem(s, host, sizeof(host));
+	printf("%s\n", host);
+
+	iniciaConexaoClient(host, argument, &port, hostnm, &server);
+	socketConectar(&sData, &server);
+
+	int argTam = strlen(arg2);
+	enviarMensagem(s, &argTam, sizeof(argTam));
 	enviarMensagem(s, arg2, strlen(arg2));
 	int size;
 	unsigned char *buffer;
@@ -154,11 +196,13 @@ void enviar(int s, char arg1[], char arg2[]) {
 
 	fread(buffer,size,1,ptr);
 
-	enviarMensagem(s, buffer, size);
+	enviarMensagem(sData, buffer, size*sizeof(char));
 
 	fclose(ptr);
 
 	free(buffer);
+
+	close(sData);
 }
 
 void encerrar(int s) {

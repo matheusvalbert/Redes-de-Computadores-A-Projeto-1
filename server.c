@@ -25,7 +25,7 @@ struct infocliente
 
 pthread_mutex_t mutex;
 void INThandler(int);
-int s;
+int s, cout = 50;
 
 void *tratamento(void *informacoes);
 void listar(int ns);
@@ -145,9 +145,31 @@ void listar(int ns) {
 
 void receber(int ns) {
 
+	unsigned short port; 
+	int nsData, namelen, sData;
+	struct sockaddr_in client;
+	struct sockaddr_in server;
+	char argument[50];
+
+	int porta = 5000 + cout;
+	sprintf(argument, "%d", porta);
+	enviarMensagem(ns, &porta, sizeof(porta));
+	cout++;
+
+	iniciaConexaoServer(&sData, &port, &server, &client, &namelen, argument);
+
+	char host[50];
+	strcpy(host, inet_ntoa(server.sin_addr));
+	enviarMensagem(ns, host, sizeof(host));
+
+	aceitaConexao(&nsData, &sData, &client, &namelen);
+
+
 	char arg[50];
 	printf("receber\n");
-	receberMensagem(ns, arg, sizeof(arg));
+	int argTam;
+	receberMensagem(ns, &argTam, sizeof(argTam));
+	receberMensagem(ns, arg, argTam);
 	int size;
 	unsigned char *buffer;
 	
@@ -164,29 +186,51 @@ void receber(int ns) {
 
 	fread(buffer,size,1,ptr);
 
-	enviarMensagem(ns, buffer, size);
+	enviarMensagem(nsData, buffer, size*sizeof(char));
 
 	fclose(ptr);
 
 	free(buffer);
+
+	close(nsData);
+
+	close(sData);
 }
 
 void enviar(int ns) {
+
+	unsigned short port; 
+	int nsData, namelen, sData;
+	struct sockaddr_in client;
+	struct sockaddr_in server;
+	char argument[50];
+
+	int porta = 5000 + cout;
+	sprintf(argument, "%d", porta);
+	enviarMensagem(ns, &porta, sizeof(porta));
+	cout++;
+
+	iniciaConexaoServer(&sData, &port, &server, &client, &namelen, argument);
+
+	char host[50];
+	strcpy(host, inet_ntoa(server.sin_addr));
+	enviarMensagem(ns, host, sizeof(host));
+
+	aceitaConexao(&nsData, &sData, &client, &namelen);
 
 	char arg[50];
 	unsigned char *buffer;
 	int size, tamanho;
 	printf("enviar\n");
-	receberMensagem(ns, arg, sizeof(arg));
-
-	tamanho = strlen(arg);
-	arg[tamanho - 2] = '\0';
+	int argTam;
+	receberMensagem(ns, &argTam, sizeof(argTam));
+	receberMensagem(ns, arg, argTam);
 
 	receberMensagem(ns, &size, sizeof(size));
 
 	buffer = malloc(size);
 
-	receberMensagem(ns, buffer, size);
+	receberMensagem(nsData, buffer, size*sizeof(char));
 
 	FILE *ptr;
 
@@ -197,6 +241,10 @@ void enviar(int ns) {
 	fclose(ptr);
 
 	free(buffer);
+
+	close(nsData);
+
+	close(sData);
 }
 
 void  INThandler(int sig)

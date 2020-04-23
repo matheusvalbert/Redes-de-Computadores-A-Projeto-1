@@ -31,14 +31,14 @@ int main() {
 	bool flag = false;
 	int s;
 
-	char comando[50], arg1[150], arg2[50];
+	char comando[50], arg1[50], arg2[50];
 
 	while(1) {
 
 	printf("> ");
 	receberComando(comando, arg1, arg2);
 
-	if(strcmp(comando, "conectar") == 0 && arg1 != NULL && arg2 != NULL)
+	if(strcmp(comando, "conectar") == 0 && arg1 != NULL)
 		flag = conectar(&s, arg1, arg2, &port, hostnm, &server);
 	else if(strcmp(comando, "listar\n") == 0 && flag == true)
 		listar(s);
@@ -91,6 +91,11 @@ void receberComando(char comando[], char arg1[], char arg2[]) {
 
 		strcpy(arg2, aux);
 		arg2[strlen(arg2) - 1] = '\0';
+	}
+	else if(strcmp(comando, "conectar") == 0) {
+
+		strcpy(arg2, "5000");
+		arg1[strlen(arg1) - 1] = '\0';
 	}
 	else {
 
@@ -148,23 +153,31 @@ void receber(int s, char arg1[], char arg2[]) {
 	int argTam = strlen(arg1);
 	enviarMensagem(s, &argTam, sizeof(argTam));
 	enviarMensagem(s, arg1, strlen(arg1));
-	unsigned char *buffer;
+	unsigned char buffer[1024];
 	int size, tamanho;
 	
 	receberMensagem(s, &size, sizeof(size));
-
-	buffer = malloc(size);
-
-	receberMensagem(nsData, buffer, size*sizeof(char));
 
 	FILE *ptr;
 
 	ptr = fopen(arg2,"wb");
 
-	fwrite(buffer,size,1,ptr);
+	int nvezes = size/1024;
+
+	while(nvezes != 0) {
+
+		receberMensagem(nsData, buffer, 1024*sizeof(char));
+		fwrite(buffer,1024,1,ptr);
+		nvezes--;
+	}
+
+	if(size%1024 != 0) {
+
+		receberMensagem(nsData, buffer, (size%1024)*sizeof(char));
+		fwrite(buffer,size%1024,1,ptr);
+	}
 
 	fclose(ptr);
-	free(buffer);
 	close(nsData);
 	close(sData);
 
@@ -196,7 +209,7 @@ void enviar(int s, char arg1[], char arg2[]) {
 	enviarMensagem(s, &argTam, sizeof(argTam));
 	enviarMensagem(s, arg2, strlen(arg2));
 	int size;
-	unsigned char *buffer;
+	unsigned char buffer[1024];
 	
 	FILE *ptr;
 	ptr = fopen(arg1,"rb");
@@ -207,14 +220,22 @@ void enviar(int s, char arg1[], char arg2[]) {
 
 	enviarMensagem(s, &size, sizeof(size));
 
-	buffer = malloc(size);
+	int nvezes = size/1024;
 
-	fread(buffer,size,1,ptr);
+	while(nvezes != 0) {
 
-	enviarMensagem(nsData, buffer, size*sizeof(char));
+		fread(buffer,1024,1,ptr);
+		enviarMensagem(nsData, buffer, 1024*sizeof(char));
+		nvezes--;
+	}
+
+	if(size%1024 != 0) {
+
+		fread(buffer,size%1024,1,ptr);
+		enviarMensagem(nsData, buffer, (size%1024)*sizeof(char));
+	}
 
 	fclose(ptr);
-	free(buffer);
 	close(nsData);
 	close(sData);
 

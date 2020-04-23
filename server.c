@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
 	struct sockaddr_in client;
 	struct sockaddr_in server;
 	struct infocliente informacoes;
-	char arg[10];
+	char arg[50];
 	signal(SIGINT, INThandler);
 
 	if (argc != 2)  {
@@ -172,9 +172,8 @@ void receber(int ns, char ip[], int p) {
 	receberMensagem(ns, &argTam, sizeof(argTam));
 	receberMensagem(ns, arg, argTam);
 	int size;
-	unsigned char *buffer;
+	unsigned char buffer[1024];
 	
-	pthread_mutex_lock(&mutex);
 	FILE *ptr;
 	ptr = fopen(arg,"rb");
 
@@ -184,15 +183,22 @@ void receber(int ns, char ip[], int p) {
 
 	enviarMensagem(ns, &size, sizeof(size));
 
-	buffer = malloc(size);
+	int nvezes = size/1024;
 
-	fread(buffer,size,1,ptr);
+	while(nvezes != 0) {
 
-	enviarMensagem(sData, buffer, size*sizeof(char));
+		fread(buffer,1024,1,ptr);
+		enviarMensagem(sData, buffer, 1024*sizeof(char));
+		nvezes--;
+	}
+
+	if(size%1024 != 0) {
+
+		fread(buffer,size%1024,1,ptr);
+		enviarMensagem(sData, buffer, (size%1024)*sizeof(char));
+	}
 
 	fclose(ptr);
-	pthread_mutex_unlock(&mutex);
-	free(buffer);
 	close(sData);
 }
 
@@ -215,7 +221,7 @@ void enviar(int ns, char ip[], int p) {
 	socketConectar(&sData, &server);
 
 	char arg[50];
-	unsigned char *buffer;
+	unsigned char buffer[1024];
 	int size, tamanho;
 	printf("enviar - IP: %s - Porta: %d\n", ip, p);
 	int argTam;
@@ -224,20 +230,26 @@ void enviar(int ns, char ip[], int p) {
 
 	receberMensagem(ns, &size, sizeof(size));
 
-	buffer = malloc(size);
-
-	receberMensagem(sData, buffer, size*sizeof(char));
-
-	pthread_mutex_lock(&mutex);
 	FILE *ptr;
 
 	ptr = fopen(arg,"wb");
 
-	fwrite(buffer,size,1,ptr);
+	int nvezes = size/1024;
+
+	while(nvezes != 0) {
+
+		receberMensagem(sData, buffer, 1024*sizeof(char));
+		fwrite(buffer,1024,1,ptr);
+		nvezes--;
+	}
+
+	if(size%1024 != 0) {
+
+		receberMensagem(sData, buffer, (size%1024)*sizeof(char));
+		fwrite(buffer,size%1024,1,ptr);
+	}
 
 	fclose(ptr);
-	pthread_mutex_unlock(&mutex);
-	free(buffer);
 	close(sData);
 }
 

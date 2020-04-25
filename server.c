@@ -138,7 +138,6 @@ void listar(int ns, char ip[], int p) {
 
 		}
 	}
-	printf("%s/n", file_names);
 	filesize = strlen(file_names);
 	file_names[filesize] = '\n';
 	file_names[filesize + 1] = '\0';

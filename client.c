@@ -115,9 +115,17 @@ bool conectar(int *s, char arg1[], char arg2[], unsigned short *port, struct hos
 
 void listar(int s) {
 	char file_names[200];
+	int num;
 	enviarMensagem(s, "listar", sizeof("listar"));
-	receberMensagem(s, file_names, sizeof(file_names));
-	printf("%s", file_names);
+	receberMensagem(s, &num, sizeof(int));
+	receberMensagem(s, file_names, num);
+	for(int i=0;i<num;i++)
+	{
+		if(file_names[i] == ' ')
+			printf("\n");
+		else
+			printf("%c", file_names[i]);
+	}
 }
 
 void receber(int s, char arg1[], char arg2[]) {

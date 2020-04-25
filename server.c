@@ -110,7 +110,7 @@ void listar(int ns, char ip[], int p) {
 	struct dirent *dp;
 	file_names[0] = '\0';
 
-	printf("listar\n");
+	printf("listar- IP: %s - Porta: %d\n", ip, p);
 
 	cwd = getcwd(buff,tamanho);
 	if ((dir = opendir (cwd)) == NULL)
@@ -138,9 +138,12 @@ void listar(int ns, char ip[], int p) {
 
 		}
 	}
+	printf("%s/n", file_names);
 	filesize = strlen(file_names);
 	file_names[filesize] = '\n';
 	file_names[filesize + 1] = '\0';
+	filesize++;
+	enviarMensagem(ns, &filesize, sizeof(int));
 	enviarMensagem(ns, file_names, strlen(file_names));
 	closedir(dir);
 }

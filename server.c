@@ -28,7 +28,7 @@ void enviar(int ns, char ip[], int p);
 int main(int argc, char **argv) {
 
 	pthread_t tratarClientes;
-	unsigned short port; 
+	unsigned short port;
 	int ns, namelen, tc;
 	struct sockaddr_in client;
 	struct sockaddr_in server;
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
 
 		informacoes.ns = ns;
 		informacoes.client = client;
-		
+
 		tc = pthread_create(&tratarClientes, NULL, tratamento, &informacoes);
     	if (tc) {
 			printf("ERRO: impossivel criar um thread consumidor\n");
@@ -104,25 +104,25 @@ void *tratamento(void *informacoes) {
 
 void listar(int ns, char ip[], int p) {
 	size_t tamanho = 101;
-	char buff[100], file_names[200], *cwd;	
+	char buff[100], file_names[200], *cwd;
 	int filesize;
 	DIR *dir;
 	struct dirent *dp;
 	file_names[0] = '\0';
 
-	printf("listar - IP: %s - Porta: %d\n", ip, p);
+	printf("listar\n");
 
 	cwd = getcwd(buff,tamanho);
-	if ((dir = opendir (cwd)) == NULL) 
+	if ((dir = opendir (cwd)) == NULL)
 	{
         	perror ("Cannot open current directory!");
         	exit (1);
    	}
-	while ((dp = readdir (dir)) != NULL) 
+	while ((dp = readdir (dir)) != NULL)
 	{
 		if ( !strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..") )
 		{
-     		// nao mostrar o diretorio atual e o anterior
+     			// nao mostrar o diretorio atual e o anterior
 		}
 		else
 		{
@@ -135,14 +135,12 @@ void listar(int ns, char ip[], int p) {
 				file_names[filesize + 1] = '\0';
 				strcat(file_names,dp->d_name);
 			}
-			
+
 		}
 	}
 	filesize = strlen(file_names);
 	file_names[filesize] = '\n';
 	file_names[filesize + 1] = '\0';
-	tamanho = strlen(file_names);
-	enviarMensagem(ns , &tamanho, sizeof(tamanho));
 	enviarMensagem(ns, file_names, strlen(file_names));
 	closedir(dir);
 }
@@ -173,7 +171,7 @@ void receber(int ns, char ip[], int p) {
 	receberMensagem(ns, arg, argTam);
 	int size;
 	unsigned char buffer[1024];
-	
+
 	FILE *ptr;
 	ptr = fopen(arg,"rb");
 
@@ -254,7 +252,7 @@ void enviar(int ns, char ip[], int p) {
 }
 
 void  INThandler(int sig)
-{	
+{
 	int i = 0;
 	void *ret;
 	pthread_mutex_destroy(&mutex);

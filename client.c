@@ -77,7 +77,7 @@ void receberComando(char comando[], char arg1[], char arg2[]) {
 	char comandoCompleto[250], *aux;
 
 	fgets(comandoCompleto, sizeof(comandoCompleto), stdin);
-	
+
 	aux = strtok(comandoCompleto, " ");
 	if(aux != 0)
 		strcpy(comando, aux);
@@ -116,24 +116,15 @@ bool conectar(int *s, char arg1[], char arg2[], unsigned short *port, struct hos
 void listar(int s) {
 	char file_names[200];
 	enviarMensagem(s, "listar", sizeof("listar"));
-	int tamanho;
-	receberMensagem(s, &tamanho, sizeof(tamanho));
-	receberMensagem(s, file_names, tamanho);
-	printf("arquivos:\n-");
-	for(int i = 0; i < tamanho; i++)
-		if(file_names[i] == '\0')
-			break;
-		else if(file_names[i] == ' ')
-			printf("\n-");
-		else
-			printf("%c", file_names[i]);
+	receberMensagem(s, file_names, sizeof(file_names));
+	printf("%s", file_names);
 }
 
 void receber(int s, char arg1[], char arg2[]) {
 
 	enviarMensagem(s, "receber", sizeof("receber"));
 
-	unsigned short port; 
+	unsigned short port;
 	int nsData, namelen, sData;
 	struct sockaddr_in client;
 	struct sockaddr_in server;
@@ -155,7 +146,7 @@ void receber(int s, char arg1[], char arg2[]) {
 	enviarMensagem(s, arg1, strlen(arg1));
 	unsigned char buffer[1024];
 	int size, tamanho;
-	
+
 	receberMensagem(s, &size, sizeof(size));
 
 	FILE *ptr;
@@ -188,7 +179,7 @@ void enviar(int s, char arg1[], char arg2[]) {
 
 	enviarMensagem(s, "enviar", sizeof("enviar"));
 
-	unsigned short port; 
+	unsigned short port;
 	int nsData, namelen, sData;
 	struct sockaddr_in client;
 	struct sockaddr_in server;
@@ -210,7 +201,7 @@ void enviar(int s, char arg1[], char arg2[]) {
 	enviarMensagem(s, arg2, strlen(arg2));
 	int size;
 	unsigned char buffer[1024];
-	
+
 	FILE *ptr;
 	ptr = fopen(arg1,"rb");
 

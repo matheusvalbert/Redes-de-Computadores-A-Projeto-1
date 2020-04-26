@@ -383,6 +383,8 @@ void enviar(int ns, char ip[], int p) {
 		exit(6);
 	}
 
+	arg[argTam] = '\0';
+
 	FILE *ptr;
 
 	ptr = fopen(arg,"wb");

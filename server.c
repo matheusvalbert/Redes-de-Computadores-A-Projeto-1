@@ -18,7 +18,7 @@ struct infocliente
 
 pthread_mutex_t mutex;
 void INThandler(int);
-int s;
+int s, cout = 50;
 
 void *tratamento(void *informacoes);
 void listar(int ns, char ip[], int p);
@@ -195,13 +195,13 @@ void receber(int ns, char ip[], int p) {
 	char host[50];
 	int len;
 
-	int porta;
-	if (recv(ns, &porta, sizeof(int), 0) == -1) {
+	int porta = 5000 + cout;
+	if (send(ns, &porta, sizeof(int), 0) == -1) {
 
 		perror("Recv()");
 		exit(6);
 	}
-	sprintf(argument, "%d", porta);
+	cout++;
 
 	if (recv(ns, &len, sizeof(int), 0) == -1) {
 
@@ -317,13 +317,13 @@ void enviar(int ns, char ip[], int p) {
 	char host[50];
 	int len;
 
-	int porta;
-	if (recv(ns, &porta, sizeof(int), 0) == -1) {
+	int porta = 5000 + cout;
+	if (send(ns, &porta, sizeof(int), 0) == -1) {
 
 		perror("Recv()");
 		exit(6);
 	}
-	sprintf(argument, "%d", porta);
+	cout++;
 
 	if (recv(ns, &len, sizeof(int), 0) == -1) {
 

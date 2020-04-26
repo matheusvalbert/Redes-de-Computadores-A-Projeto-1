@@ -17,7 +17,6 @@ void receber(int s, char arg1[], char arg2[]);
 void enviar(int s, char arg1[], char arg2[]);
 void encerrar(int s);
 
-int cout = 50;
 char host[50];
 
 int main() {
@@ -182,15 +181,13 @@ void receber(int s, char arg1[], char arg2[]) {
 	struct sockaddr_in server;
 	char argument[50];
 
-	int porta = 5000 + cout;
-	sprintf(argument, "%d", porta);
+	int porta;
 
-	if (send(s, &porta, sizeof(int), 0) == -1) {
+	if (recv(s, &porta, sizeof(int), 0) == -1) {
 
 		perror("Recv()");
 		exit(6);
 	}
-	cout++;
 
 	int len = strlen(host);
 	if (send(s, &len, sizeof(int), 0) < 0) {
@@ -214,8 +211,8 @@ void receber(int s, char arg1[], char arg2[]) {
 	}
 
 	server.sin_family = AF_INET;   
-    server.sin_port   = htons(port);       
-    server.sin_addr.s_addr = INADDR_ANY;
+    	server.sin_port   = htons(port);       
+    	server.sin_addr.s_addr = INADDR_ANY;
 
     if (bind(sData, (struct sockaddr *)&server, sizeof(server)) < 0) {
 
@@ -295,7 +292,7 @@ void receber(int s, char arg1[], char arg2[]) {
 void enviar(int s, char arg1[], char arg2[]) {
 
 	int op = 3;
-
+	int porta;
 
 	arg1[strlen(arg1)] = '\0';
 	arg2[strlen(arg2)] = '\0';
@@ -306,6 +303,8 @@ void enviar(int s, char arg1[], char arg2[]) {
 		exit(6);
 	}
 
+	
+
 	unsigned short port;
 	int nsData, namelen, sData;
 	struct sockaddr_in client;
@@ -313,14 +312,11 @@ void enviar(int s, char arg1[], char arg2[]) {
 	char argument[50];
 	int len;
 
-	int porta = 5000 + cout;
-	sprintf(argument, "%d", porta);
-	if (send(s, &porta, sizeof(int), 0) == -1) {
+	if (recv(s, &porta, sizeof(int), 0) == -1) {
 
 		perror("Recv()");
 		exit(6);
 	}
-	cout++;
 
 	len = strlen(host);
 

@@ -5,7 +5,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include "tcp.h"
+#include <netdb.h>
 
 #define clrscr() printf("\e[1;1H\e[2J")
 
@@ -106,9 +106,33 @@ void receberComando(char comando[], char arg1[], char arg2[]) {
 
 bool conectar(int *s, char arg1[], char arg2[], unsigned short *port, struct hostent *hostnm, struct sockaddr_in *server) {
 
-	iniciaConexaoClient(arg1, arg2, port, hostnm, server);
-	socketConectar(s, server);
+	hostnm = gethostbyname(arg1);
+	if (hostnm == (struct hostent *) 0)  {
+
+		fprintf(stderr, "Gethostbyname failed\n");
+		exit(2);
+	}
+
+	*port = (unsigned short) atoi(arg2);
+
+	server->sin_family      = AF_INET;
+	server->sin_port        = htons(*port);
+	server->sin_addr.s_addr = *((unsigned long *)hostnm->h_addr);
+
+	if ((*s = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+
+		perror("Socket()");
+		exit(3);
+	}
+
+	if (connect(*s, (struct sockaddr *)server, sizeof(*server)) < 0) {
+
+		perror("Connect()");
+		exit(4);
+	}
+
 	strcpy(host, arg1);
+	printf("%s\n", host);
 	printf("conexao aceita\n");
 	return true;
 }
@@ -116,9 +140,23 @@ bool conectar(int *s, char arg1[], char arg2[], unsigned short *port, struct hos
 void listar(int s) {
 	char file_names[200];
 	int num;
-	enviarMensagem(s, "listar", sizeof("listar"));
-	receberMensagem(s, &num, sizeof(int));
-	receberMensagem(s, file_names, num);
+
+	int op = 1;
+	if (send(s, &op, sizeof(int), 0) < 0) {
+
+		perror("Send()");
+		exit(5);
+	}
+	if (recv(s, &num, sizeof(int), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
+	if (recv(s, file_names, num, 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
 	for(int i=0;i<num;i++)
 	{
 		if(file_names[i] == ' ')
@@ -130,7 +168,13 @@ void listar(int s) {
 
 void receber(int s, char arg1[], char arg2[]) {
 
-	enviarMensagem(s, "receber", sizeof("receber"));
+	int op = 2;
+
+	if (send(s, &op, sizeof(int), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
 
 	unsigned short port;
 	int nsData, namelen, sData;
@@ -140,22 +184,79 @@ void receber(int s, char arg1[], char arg2[]) {
 
 	int porta = 5000 + cout;
 	sprintf(argument, "%d", porta);
-	enviarMensagem(s, &porta, sizeof(porta));
+
+	if (send(s, &porta, sizeof(int), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
 	cout++;
 
-	iniciaConexaoServer(&sData, &port, &server, &client, &namelen, argument);
+	int len = strlen(host);
+	if (send(s, &len, sizeof(int), 0) < 0) {
 
-	enviarMensagem(s, host, sizeof(host));
+		perror("Send()");
+		exit(5);
+	}   	
 
-	aceitaConexao(&nsData, &sData, &client, &namelen);
+   	if (send(s, host, strlen(host), 0) < 0) {
+
+		perror("Send()");
+		exit(5);
+	}
+
+	port = (unsigned short) porta;
+
+	if ((sData = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+
+		perror("Socket()");
+		exit(2);
+	}
+
+	server.sin_family = AF_INET;   
+    server.sin_port   = htons(port);       
+    server.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(sData, (struct sockaddr *)&server, sizeof(server)) < 0) {
+
+       	perror("Bind()");
+       	exit(3);
+    }
+
+    if (listen(sData, 1) != 0) {
+
+		perror("Listen()");
+       	exit(4);
+   	}
+
+   	namelen = sizeof(client);
+
+
+    if ((nsData = accept(sData, (struct sockaddr *)&client, (socklen_t *)&namelen)) == -1) {
+        perror("Accept()");
+        exit(5);
+    }
 
 	int argTam = strlen(arg1);
-	enviarMensagem(s, &argTam, sizeof(argTam));
-	enviarMensagem(s, arg1, strlen(arg1));
+	if (send(s, &argTam, sizeof(argTam), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
+	if (send(s, arg1, strlen(arg1), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
+
 	unsigned char buffer[1024];
 	int size, tamanho;
 
-	receberMensagem(s, &size, sizeof(size));
+	if (recv(s, &size, sizeof(size), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
 
 	FILE *ptr;
 
@@ -165,14 +266,22 @@ void receber(int s, char arg1[], char arg2[]) {
 
 	while(nvezes != 0) {
 
-		receberMensagem(nsData, buffer, 1024*sizeof(char));
+		if (recv(nsData, buffer, 1024*sizeof(char), 0) == -1) {
+
+			perror("Recv()");
+			exit(6);
+		}
 		fwrite(buffer,1024,1,ptr);
 		nvezes--;
 	}
 
 	if(size%1024 != 0) {
 
-		receberMensagem(nsData, buffer, (size%1024)*sizeof(char));
+		if (recv(nsData, buffer, (size%1024)*sizeof(char), 0) == -1) {
+
+			perror("Recv()");
+			exit(6);
+		}
 		fwrite(buffer,size%1024,1,ptr);
 	}
 
@@ -185,53 +294,135 @@ void receber(int s, char arg1[], char arg2[]) {
 
 void enviar(int s, char arg1[], char arg2[]) {
 
-	enviarMensagem(s, "enviar", sizeof("enviar"));
+	int op = 3;
+
+
+	arg1[strlen(arg1)] = '\0';
+	arg2[strlen(arg2)] = '\0';
+
+	if (send(s, &op, sizeof(int), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
 
 	unsigned short port;
 	int nsData, namelen, sData;
 	struct sockaddr_in client;
 	struct sockaddr_in server;
 	char argument[50];
+	int len;
 
 	int porta = 5000 + cout;
 	sprintf(argument, "%d", porta);
-	enviarMensagem(s, &porta, sizeof(porta));
+	if (send(s, &porta, sizeof(int), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
 	cout++;
 
-	iniciaConexaoServer(&sData, &port, &server, &client, &namelen, argument);
+	len = strlen(host);
 
-	enviarMensagem(s, host, sizeof(host));
+	if (send(s, &len, sizeof(int), 0) < 0) {
 
-	aceitaConexao(&nsData, &sData, &client, &namelen);
+		perror("Send()");
+		exit(5);
+	}	
+
+	if (send(s, host, strlen(host), 0) < 0) {
+
+		perror("Send()");
+		exit(5);
+	}
 
 	int argTam = strlen(arg2);
-	enviarMensagem(s, &argTam, sizeof(argTam));
-	enviarMensagem(s, arg2, strlen(arg2));
+	if (send(s, &argTam, sizeof(int), 0) < 0) {
+
+		perror("Send()");
+		exit(5);
+	}
+	if (send(s, arg2, strlen(arg2), 0) < 0) {
+
+		perror("Send()");
+		exit(5);
+	}
+
+	port = (unsigned short) porta;
+
+	if ((sData = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+
+		perror("Socket()");
+		exit(2);
+	}
+
+	server.sin_family = AF_INET;   
+    server.sin_port   = htons(port);       
+    server.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(sData, (struct sockaddr *)&server, sizeof(server)) < 0) {
+
+       	perror("Bind()");
+       	exit(3);
+    }
+
+    if (listen(sData, 1) != 0) {
+
+		perror("Listen()");
+       	exit(4);
+   	}
+
+   	namelen = sizeof(client);
+
+
+    if ((nsData = accept(sData, (struct sockaddr *)&client, (socklen_t *)&namelen)) == -1) {
+        
+        perror("Accept()");
+        exit(5);
+    }
+
 	int size;
 	unsigned char buffer[1024];
 
 	FILE *ptr;
 	ptr = fopen(arg1,"rb");
+	if(ptr == NULL){
+
+		perror("Open()");
+		exit(0);
+	}
 
 	fseek(ptr, 0, SEEK_END);
-	size = ftell(ptr);
-	fseek(ptr, 0, SEEK_SET);
+	size = (int)ftell(ptr);
+	rewind(ptr);
 
-	enviarMensagem(s, &size, sizeof(size));
+	if (send(s, &size, sizeof(size), 0) < 0) {
+
+		perror("Send()");
+		exit(5);
+	}
 
 	int nvezes = size/1024;
 
 	while(nvezes != 0) {
 
 		fread(buffer,1024,1,ptr);
-		enviarMensagem(nsData, buffer, 1024*sizeof(char));
+		if (send(nsData, buffer, 1024*sizeof(char), 0) < 0) {
+
+			perror("Send()");
+			exit(5);
+		}
 		nvezes--;
 	}
 
 	if(size%1024 != 0) {
 
 		fread(buffer,size%1024,1,ptr);
-		enviarMensagem(nsData, buffer, (size%1024)*sizeof(char));
+		if (send(nsData, buffer, (size%1024)*sizeof(char), 0) < 0) {
+
+			perror("Send()");
+			exit(5);
+		}
 	}
 
 	fclose(ptr);
@@ -242,6 +433,12 @@ void enviar(int s, char arg1[], char arg2[]) {
 }
 
 void encerrar(int s) {
-	enviarMensagem(s, "encerrar", sizeof("encerrar"));
+
+	int op = 4;
+	if (send(s, &op, sizeof(4), 0) < 0) {
+
+		perror("Send()");
+		exit(5);
+	}
 	close(s);
 }

@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <dirent.h>
 #include <unistd.h>
-#include "tcp.h"
+#include <netdb.h>
 
 struct infocliente
 {
@@ -50,11 +50,38 @@ int main(int argc, char **argv) {
 
 	strcpy(arg, argv[1]);
 
-	iniciaConexaoServer(&s, &port, &server, &client, &namelen, arg);
+	port = (unsigned short) atoi(arg);
+
+	if ((s = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+
+		perror("Socket()");
+		exit(2);
+	}
+
+	server.sin_family = AF_INET;   
+    server.sin_port   = htons(port);       
+    server.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(s, (struct sockaddr *)&server, sizeof(server)) < 0) {
+
+       	perror("Bind()");
+       	exit(3);
+    }
+
+    if (listen(s, 1) != 0) {
+
+		perror("Listen()");
+       	exit(4);
+   	}
+
+   	namelen = sizeof(client);
 
 	while(1) {
 
-		aceitaConexao(&ns, &s, &client, &namelen);
+	    if ((ns = accept(s, (struct sockaddr *)&client, (socklen_t *)&namelen)) == -1) {
+	        perror("Accept()");
+	        exit(5);
+	    }
 
 		informacoes.ns = ns;
 		informacoes.client = client;
@@ -79,21 +106,24 @@ void *tratamento(void *informacoes) {
 	info = *(struct infocliente*) informacoes;
 	client = info.client;
 	ns = info.ns;
-	char comando[15];
-
+	int comando;
 	printf("conexao aceita - IP: %s - Porta: %d\n", inet_ntoa(client.sin_addr), ntohs(client.sin_port));
 
 	while(1) {
 
-		receberMensagem(ns, comando, sizeof(comando));
+		if (recv(ns, &comando, sizeof(int), 0) == -1) {
 
-		if(strcmp(comando, "listar") == 0)
+			perror("Recv()");
+			exit(6);
+		}
+
+		if(comando == 1)
 			listar(ns, inet_ntoa(client.sin_addr), ntohs(client.sin_port));
-		else if(strcmp(comando, "receber") == 0)
+		else if(comando == 2)
 			receber(ns, inet_ntoa(client.sin_addr), ntohs(client.sin_port));
-		else if(strcmp(comando, "enviar") == 0)
+		else if(comando == 3)
 			enviar(ns, inet_ntoa(client.sin_addr), ntohs(client.sin_port));
-		else if(strcmp(comando, "encerrar") == 0) {
+		else if(comando == 4) {
 
 			close(ns);
 			printf("encerrar - IP: %s - Porta: %d\n", inet_ntoa(client.sin_addr), ntohs(client.sin_port));
@@ -142,8 +172,16 @@ void listar(int ns, char ip[], int p) {
 	file_names[filesize] = '\n';
 	file_names[filesize + 1] = '\0';
 	filesize++;
-	enviarMensagem(ns, &filesize, sizeof(int));
-	enviarMensagem(ns, file_names, strlen(file_names));
+	if (send(ns, &filesize, sizeof(int), 0) < 0) {
+
+		perror("Send()");
+		exit(5);
+	}
+	if (send(ns, file_names, strlen(file_names), 0) < 0) {
+
+		perror("Send()");
+		exit(5);
+	}
 	closedir(dir);
 }
 
@@ -154,48 +192,115 @@ void receber(int ns, char ip[], int p) {
     struct sockaddr_in server;
 	int sData;
 	char argument[50];
+	char host[50];
+	int len;
 
 	int porta;
-	receberMensagem(ns, &porta, sizeof(porta));
+	if (recv(ns, &porta, sizeof(int), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
 	sprintf(argument, "%d", porta);
 
-	char host[50];
-	receberMensagem(ns, host, sizeof(host));
+	if (recv(ns, &len, sizeof(int), 0) == -1) {
 
-	iniciaConexaoClient(host, argument, &port, hostnm, &server);
-	socketConectar(&sData, &server);
+		perror("Recv()");
+		exit(6);
+	}
+	
+	if (recv(ns, host, len, 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
+
+	hostnm = gethostbyname(host);
+	if (hostnm == (struct hostent *) 0)  {
+
+		fprintf(stderr, "Gethostbyname failed\n");
+		exit(2);
+	}
+
+	port = (unsigned short) porta;
+
+	server.sin_family      = AF_INET;
+	server.sin_port        = htons(port);
+	server.sin_addr.s_addr = *((unsigned long *)hostnm->h_addr);
+
+
+	if ((sData = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+
+		perror("Socket()");
+		exit(3);
+	}
+
+	if (connect(sData, (struct sockaddr *)&server, sizeof(server)) < 0) {
+
+		perror("Connect()");
+		exit(4);
+	}
 
 
 	char arg[50];
 	printf("receber - IP: %s - Porta: %d\n", ip, p);
 	int argTam;
-	receberMensagem(ns, &argTam, sizeof(argTam));
-	receberMensagem(ns, arg, argTam);
+	if (recv(ns, &argTam, sizeof(argTam), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
+	if (recv(ns, arg, argTam, 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
+
+	arg[argTam] = '\0';
+
 	int size;
 	unsigned char buffer[1024];
 
 	FILE *ptr;
 	ptr = fopen(arg,"rb");
 
-	fseek(ptr, 0, SEEK_END);
-	size = ftell(ptr);
-	fseek(ptr, 0, SEEK_SET);
+	if(ptr == NULL){
 
-	enviarMensagem(ns, &size, sizeof(size));
+		perror("Open()");
+		exit(0);
+	}
+
+	fseek(ptr, 0, SEEK_END);
+	size = (int)ftell(ptr);
+	rewind(ptr);
+
+	if (send(ns, &size, sizeof(size), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
 
 	int nvezes = size/1024;
 
 	while(nvezes != 0) {
 
 		fread(buffer,1024,1,ptr);
-		enviarMensagem(sData, buffer, 1024*sizeof(char));
+		if (send(sData, buffer, 1024*sizeof(char), 0) == -1) {
+
+			perror("Recv()");
+			exit(6);
+		}
 		nvezes--;
 	}
 
 	if(size%1024 != 0) {
 
 		fread(buffer,size%1024,1,ptr);
-		enviarMensagem(sData, buffer, (size%1024)*sizeof(char));
+		if (send(sData, buffer, (size%1024)*sizeof(char), 0) == -1) {
+
+			perror("Recv()");
+			exit(6);
+		}
 	}
 
 	fclose(ptr);
@@ -209,26 +314,74 @@ void enviar(int ns, char ip[], int p) {
     struct sockaddr_in server;
 	int sData;
 	char argument[50];
+	char host[50];
+	int len;
 
 	int porta;
-	receberMensagem(ns, &porta, sizeof(porta));
+	if (recv(ns, &porta, sizeof(int), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
 	sprintf(argument, "%d", porta);
 
-	char host[50];
-	receberMensagem(ns, host, sizeof(host));
+	if (recv(ns, &len, sizeof(int), 0) == -1) {
 
-	iniciaConexaoClient(host, argument, &port, hostnm, &server);
-	socketConectar(&sData, &server);
+		perror("Recv()");
+		exit(6);
+	}
+	
+	if (recv(ns, host, len, 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
+
+	hostnm = gethostbyname(host);
+	if (hostnm == (struct hostent *) 0)  {
+
+		fprintf(stderr, "Gethostbyname failed\n");
+		exit(2);
+	}
+
+	port = (unsigned short) porta;
+
+	server.sin_family      = AF_INET;
+	server.sin_port        = htons(port);
+	server.sin_addr.s_addr = *((unsigned long *)hostnm->h_addr);
+
+	if ((s = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+
+		perror("Socket()");
+		exit(3);
+	}
+	
+	if (connect(s, (struct sockaddr *)&server, sizeof(server)) < 0) {
+
+		perror("Connect()");
+		exit(4);
+	}
 
 	char arg[50];
 	unsigned char buffer[1024];
 	int size, tamanho;
 	printf("enviar - IP: %s - Porta: %d\n", ip, p);
 	int argTam;
-	receberMensagem(ns, &argTam, sizeof(argTam));
-	receberMensagem(ns, arg, argTam);
+	if (recv(ns, &argTam, sizeof(argTam), 0) == -1) {
 
-	receberMensagem(ns, &size, sizeof(size));
+		perror("Recv()");
+		exit(6);
+	}
+	if (recv(ns, arg, argTam, 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
+	if (recv(ns, &size, sizeof(size), 0) == -1) {
+
+		perror("Recv()");
+		exit(6);
+	}
 
 	FILE *ptr;
 
@@ -238,14 +391,22 @@ void enviar(int ns, char ip[], int p) {
 
 	while(nvezes != 0) {
 
-		receberMensagem(sData, buffer, 1024*sizeof(char));
+		if (recv(s, buffer, 1024*sizeof(char), 0) == -1) {
+
+			perror("Recv()");
+			exit(6);
+		}
 		fwrite(buffer,1024,1,ptr);
 		nvezes--;
 	}
 
 	if(size%1024 != 0) {
 
-		receberMensagem(sData, buffer, (size%1024)*sizeof(char));
+		if (recv(s, buffer, (size%1024)*sizeof(char), 0) == -1) {
+
+			perror("Recv()");
+			exit(6);
+		}
 		fwrite(buffer,size%1024,1,ptr);
 	}
 

@@ -350,13 +350,13 @@ void enviar(int ns, char ip[], int p) {
 	server.sin_port        = htons(port);
 	server.sin_addr.s_addr = *((unsigned long *)hostnm->h_addr);
 
-	if ((s = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+	if ((sData = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
 
 		perror("Socket()");
 		exit(3);
 	}
 	
-	if (connect(s, (struct sockaddr *)&server, sizeof(server)) < 0) {
+	if (connect(sData, (struct sockaddr *)&server, sizeof(server)) < 0) {
 
 		perror("Connect()");
 		exit(4);
@@ -391,7 +391,7 @@ void enviar(int ns, char ip[], int p) {
 
 	while(nvezes != 0) {
 
-		if (recv(s, buffer, 1024*sizeof(char), 0) == -1) {
+		if (recv(sData, buffer, 1024*sizeof(char), 0) == -1) {
 
 			perror("Recv()");
 			exit(6);
@@ -402,7 +402,7 @@ void enviar(int ns, char ip[], int p) {
 
 	if(size%1024 != 0) {
 
-		if (recv(s, buffer, (size%1024)*sizeof(char), 0) == -1) {
+		if (recv(sData, buffer, (size%1024)*sizeof(char), 0) == -1) {
 
 			perror("Recv()");
 			exit(6);

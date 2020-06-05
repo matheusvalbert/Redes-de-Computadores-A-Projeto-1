@@ -189,7 +189,7 @@ void receber(int ns, char ip[], int p) {
 
 	unsigned short port;
 	struct hostent *hostnm;
-    struct sockaddr_in server;
+   	struct sockaddr_in server;
 	int sData;
 	char argument[50];
 	char host[50];
@@ -214,7 +214,7 @@ void receber(int ns, char ip[], int p) {
 		perror("Recv()");
 		exit(6);
 	}
-
+	host[len] = '\0';
 	hostnm = gethostbyname(host);
 	if (hostnm == (struct hostent *) 0)  {
 
@@ -336,7 +336,7 @@ void enviar(int ns, char ip[], int p) {
 		perror("Recv()");
 		exit(6);
 	}
-
+	host[len] = '\0';
 	hostnm = gethostbyname(host);
 	if (hostnm == (struct hostent *) 0)  {
 

@@ -156,6 +156,7 @@ void listar(int s) {
 		perror("Recv()");
 		exit(6);
 	}
+	file_names[num] = '\0';
 	for(int i=0;i<num;i++)
 	{
 		if(file_names[i] == ' ')
@@ -214,25 +215,25 @@ void receber(int s, char arg1[], char arg2[]) {
     	server.sin_port   = htons(port);       
     	server.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(sData, (struct sockaddr *)&server, sizeof(server)) < 0) {
+    	if (bind(sData, (struct sockaddr *)&server, sizeof(server)) < 0) {
 
-       	perror("Bind()");
-       	exit(3);
-    }
+	       	perror("Bind()");
+	       	exit(3);
+   	 }
 
-    if (listen(sData, 1) != 0) {
+    	if (listen(sData, 1) != 0) {
 
 		perror("Listen()");
-       	exit(4);
+       		exit(4);
    	}
 
    	namelen = sizeof(client);
 
 
-    if ((nsData = accept(sData, (struct sockaddr *)&client, (socklen_t *)&namelen)) == -1) {
-        perror("Accept()");
-        exit(5);
-    }
+   	if ((nsData = accept(sData, (struct sockaddr *)&client, (socklen_t *)&namelen)) == -1) {
+       		perror("Accept()");
+        	exit(5);
+    	}
 
 	int argTam = strlen(arg1);
 	if (send(s, &argTam, sizeof(argTam), 0) == -1) {
@@ -353,29 +354,29 @@ void enviar(int s, char arg1[], char arg2[]) {
 	}
 
 	server.sin_family = AF_INET;   
-    server.sin_port   = htons(port);       
-    server.sin_addr.s_addr = INADDR_ANY;
+    	server.sin_port   = htons(port);       
+    	server.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(sData, (struct sockaddr *)&server, sizeof(server)) < 0) {
+    	if (bind(sData, (struct sockaddr *)&server, sizeof(server)) < 0) {
 
-       	perror("Bind()");
-       	exit(3);
-    }
+	       	perror("Bind()");
+	       	exit(3);
+    	}
 
-    if (listen(sData, 1) != 0) {
+    	if (listen(sData, 1) != 0) {
 
 		perror("Listen()");
-       	exit(4);
+       		exit(4);
    	}
 
    	namelen = sizeof(client);
 
 
-    if ((nsData = accept(sData, (struct sockaddr *)&client, (socklen_t *)&namelen)) == -1) {
+    	if ((nsData = accept(sData, (struct sockaddr *)&client, (socklen_t *)&namelen)) == -1) {
         
-        perror("Accept()");
-        exit(5);
-    }
+		perror("Accept()");
+		exit(5);
+    	}
 
 	int size;
 	unsigned char buffer[1024];

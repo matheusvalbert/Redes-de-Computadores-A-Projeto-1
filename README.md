@@ -10,6 +10,6 @@ Este projeto deve ser utilizado em um sistema operacional Linux.
 Primeiramente após realizar o download dos arquivos deve-se utilizar o comando make
 na pasta onde os arquivos se encontram.
 Serão gerados dois arquivos, um nomeado "client" e um nomeado "server", deve-se executar o arquivo 
-server pelo terminal na pasta desejada e executar o arquivo client pelo terminal na pasta que 
+server no terminal na pasta desejada e executar o arquivo client no terminal na pasta que 
 receberá ou enviará os arquivos.
 ```
